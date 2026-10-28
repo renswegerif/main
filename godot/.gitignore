@@ -1,0 +1,4 @@
+.godot/
+# Gekochte illustraties horen niet in een openbare repository.
+assets/eigen/**
+!assets/eigen/LEESMIJ.txt

@@ -19,7 +19,6 @@
       <path d="M196 98 q-5 10 0 20 M206 96 q-5 11 0 22 M216 97 q-5 10 0 20"/>
       <circle cx="226" cy="104" r="6"/><circle cx="227.5" cy="104" r="2.5" class="vol"/>
       <path d="M230 124 q8 2 16 -6"/>
-      <path d="M232 125 l2 4 l2 -5 l2 4 l2 -6 l2 4 l2 -6"/>
     </g>
   <text x="18" y="203" font-size="5">Naam: ................................................</text>
   <text x="279" y="203" font-size="4" text-anchor="end">Leg het blad in het vak onder de camera. De hoekjes moeten in beeld zijn.</text>

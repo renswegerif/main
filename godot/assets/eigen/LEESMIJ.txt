@@ -1,0 +1,9 @@
+Zet hier je eigen illustraties (bijvoorbeeld uit het Creative Market-pakket), in dezelfde mappen als in assets/dummy:
+
+  dieren/   voorbeelddieren die zwemmen zolang er nog weinig tekeningen zijn (kop naar rechts)
+  achter/   grote dingen ver weg (walvis, rotsen)
+  midden/   koraal, wier, stenen op de bodem
+  voor/     planten die voor alles langs schuiven in de race
+
+Staat er in een map hier minstens één PNG, dan worden de dummy's uit die map niet meer gebruikt.
+Deze map gaat niet mee naar GitHub.

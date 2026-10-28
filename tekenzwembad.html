@@ -1,0 +1,696 @@
+<title>Tekenzwembad</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Grandstander:wght@600;800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: één schermvullend zwembad-canvas (de beamerbeeld), met een zwevende werkbalk die wegvalt, en een sheet om een tekening toe te voegen. */
+:root {
+  --deep: #03101c;       /* zwembad bij nacht: zwart = geen licht op het water */
+  --tile: #0a2638;
+  --panel: #0d2433;
+  --line: #1f4a60;
+  --fg: #e6f3f7;
+  --muted: #8fb3c2;
+  --chlorine: #5fe3d0;   /* accent */
+  --sun: #ffcf4a;
+  --danger: #ff7a6b;
+  --display: "Grandstander", "Comic Sans MS", "Chalkboard SE", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--deep); color: var(--fg); font-family: var(--body); font-size: 16px; overflow: hidden; }
+#pool { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+body.idle #pool { cursor: none; }
+
+.bar {
+  position: fixed; z-index: 5;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  left: max(16px, env(safe-area-inset-left, 0px));
+  right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  transition: opacity .4s, transform .4s;
+}
+body.idle .bar { opacity: 0; transform: translateY(-8px); pointer-events: none; }
+.brand { font-family: var(--display); font-weight: 800; font-size: 22px; color: var(--chlorine); margin-right: 6px; letter-spacing: .01em; }
+.count { font-size: 13px; color: var(--muted); margin-right: auto; font-variant-numeric: tabular-nums; }
+
+button, .btn {
+  font: 700 15px/1 var(--body); color: var(--fg);
+  background: var(--panel); border: 1px solid var(--line);
+  padding: 10px 14px; border-radius: 999px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+button:hover { border-color: var(--chlorine); }
+button:focus-visible, input:focus-visible, label.btn:focus-within { outline: 3px solid var(--sun); outline-offset: 2px; }
+button.primary { background: var(--chlorine); color: var(--deep); border-color: var(--chlorine); }
+button.big { font-size: 20px; padding: 16px 24px; font-family: var(--display); font-weight: 800; }
+button[aria-pressed="true"] { background: var(--tile); border-color: var(--chlorine); color: var(--chlorine); }
+button:disabled { opacity: .5; cursor: default; }
+
+.addfab {
+  position: fixed; z-index: 5;
+  right: max(16px, calc(env(safe-area-inset-right, 0px) + 16px));
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
+  transition: opacity .4s;
+}
+body.idle .addfab { opacity: 0; pointer-events: none; }
+
+/* sheets */
+.sheet-wrap { position: fixed; inset: 0; z-index: 10; background: rgba(1, 8, 14, .72); display: grid; place-items: center; padding-block: 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.sheet { background: var(--panel); border: 1px solid var(--line); border-radius: 22px; width: min(520px, 100%); max-height: 100%; overflow: auto; padding: 22px; display: grid; gap: 16px; }
+.sheet h2 { margin: 0; font-family: var(--display); font-weight: 800; font-size: 26px; color: var(--sun); text-wrap: balance; }
+.sheet p { margin: 0; color: var(--muted); line-height: 1.5; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.row.end { justify-content: flex-end; }
+.preview { background: var(--deep); border-radius: 14px; min-height: 180px; display: grid; place-items: center; padding: 14px; background-image: radial-gradient(circle at 30% 20%, var(--tile), transparent 60%); }
+.preview canvas { max-width: 100%; max-height: 260px; }
+label.field { display: grid; gap: 6px; font-weight: 700; font-size: 14px; }
+input[type=text] { font: 400 17px var(--body); color: var(--fg); background: var(--deep); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; }
+input[type=range] { width: 100%; accent-color: var(--chlorine); }
+.hint { font-size: 13px; color: var(--muted); }
+.drop { border: 2px dashed var(--line); border-radius: 16px; padding: 22px; display: grid; gap: 12px; justify-items: center; text-align: center; }
+.drop.over { border-color: var(--chlorine); }
+.drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.status { font-size: 14px; color: var(--chlorine); min-height: 1.2em; }
+.status.err { color: var(--danger); }
+ol.steps { margin: 0; padding-left: 20px; color: var(--muted); line-height: 1.55; display: grid; gap: 4px; }
+ol.steps b { color: var(--fg); }
+.settings-grid { display: grid; gap: 14px; }
+.toast { position: fixed; z-index: 20; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 90px); transform: translateX(-50%); background: var(--chlorine); color: var(--deep); font-weight: 700; padding: 12px 18px; border-radius: 999px; max-width: calc(100% - 32px); text-align: center; }
+@media (max-width: 520px) { .brand { font-size: 19px; } .bar button { padding: 9px 11px; font-size: 14px; } .bar .wide { display: none; } }
+</style>
+
+<canvas id="pool" aria-label="Zwembad met zwemmende tekeningen"></canvas>
+
+<div class="bar" id="bar">
+  <span class="brand">Tekenzwembad</span>
+  <span class="count" id="count">vissen laden…</span>
+  <button id="btnFull" class="wide" type="button">Volledig scherm</button>
+  <button id="btnSettings" type="button">Beamer</button>
+  <button id="btnHelp" type="button">Hoe werkt het?</button>
+</div>
+<button class="addfab primary big" id="btnAdd" type="button">+ Tekening toevoegen</button>
+
+<!-- Tekening toevoegen -->
+<div class="sheet-wrap" id="addSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="addTitle">
+    <h2 id="addTitle">Laat je tekening zwemmen</h2>
+    <div id="stepPick" class="drop">
+      <p>Maak een foto van recht boven, zodat het witte papier het hele beeld vult.</p>
+      <label class="btn primary" for="fileIn" style="background:var(--chlorine);color:var(--deep);border-color:var(--chlorine);font-size:18px;padding:14px 20px">Foto maken of kiezen</label>
+      <input id="fileIn" type="file" accept="image/*" capture="environment">
+      <span class="hint">Op de laptop kun je een foto of scan ook hierheen slepen.</span>
+    </div>
+    <div id="stepCheck" hidden class="settings-grid">
+      <div class="preview"><canvas id="prevCv" width="10" height="10"></canvas></div>
+      <div class="row">
+        <span class="hint" style="margin-right:auto">Welke kant kijkt het dier op?</span>
+        <button type="button" id="faceL" aria-pressed="false">← Links</button>
+        <button type="button" id="faceR" aria-pressed="true">Rechts →</button>
+      </div>
+      <div>
+        <span class="hint">Strenger knippen haalt schaduw en randjes weg</span>
+        <input id="strict" type="range" min="10" max="80" value="38" aria-label="Hoe streng het papier wordt weggeknipt">
+      </div>
+      <label class="field" for="naam">Naam van de tekenaar (mag leeg)
+        <input id="naam" type="text" maxlength="24" autocomplete="off" placeholder="bijv. Sanne, 6 jaar">
+      </label>
+    </div>
+    <div class="status" id="addStatus" role="status"></div>
+    <div class="row end">
+      <button type="button" id="addCancel">Annuleren</button>
+      <button type="button" id="addRetry" hidden>Andere foto</button>
+      <button type="button" class="primary" id="addSend" hidden>Laat zwemmen!</button>
+    </div>
+  </div>
+</div>
+
+<!-- Beamer-instellingen -->
+<div class="sheet-wrap" id="setSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+    <h2 id="setTitle">Beamer instellen</h2>
+    <p>Deze instellingen gelden alleen voor dit apparaat. Zet ze goed op de laptop aan de beamer.</p>
+    <div class="settings-grid">
+      <div class="row">
+        <button type="button" id="optMirror" aria-pressed="false">Spiegelen</button>
+        <button type="button" id="optRotate" aria-pressed="false">180° draaien</button>
+        <button type="button" id="optBubbles" aria-pressed="true">Belletjes</button>
+        <button type="button" id="optGrid" aria-pressed="false">Uitlijnraster</button>
+      </div>
+      <label class="field" for="optSize">Grootte van de dieren
+        <input id="optSize" type="range" min="6" max="34" value="16">
+      </label>
+      <label class="field" for="optMax">Maximaal aantal tegelijk: <span id="maxVal">30</span>
+        <input id="optMax" type="range" min="5" max="60" value="30">
+      </label>
+      <div class="row">
+        <button type="button" id="btnClear">Alle tekeningen weghalen…</button>
+        <button type="button" id="btnClearYes" hidden style="border-color:var(--danger);color:var(--danger)">Ja, alles weg</button>
+      </div>
+      <div class="status" id="setStatus" role="status"></div>
+    </div>
+    <div class="row end"><button type="button" class="primary" id="setClose">Klaar</button></div>
+  </div>
+</div>
+
+<!-- Uitleg -->
+<div class="sheet-wrap" id="helpSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <h2 id="helpTitle">Zo werkt het</h2>
+    <ol class="steps">
+      <li><b>Laptop aan de beamer:</b> open deze pagina, tik op Volledig scherm. De beamer schijnt van boven op het water.</li>
+      <li><b>Kinderen tekenen</b> een vis, kwal of ander waterdier op wit papier, met een dikke donkere omlijning.</li>
+      <li><b>Telefoon:</b> open dezelfde link, tik op Tekening toevoegen en fotografeer de tekening.</li>
+      <li>Het papier wordt weggeknipt en het dier <b>zwemt binnen een paar seconden</b> in het zwembad.</li>
+      <li>Tik of klik in het water om de vissen te laten schrikken.</li>
+    </ol>
+    <p>De zwarte achtergrond geeft geen licht, dus op het water zie je alleen de tekeningen. Hoe donkerder de zaal, hoe mooier.</p>
+    <div class="row end"><button type="button" class="primary" id="helpClose">Begrepen</button></div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const cv = $('pool'), ctx = cv.getContext('2d');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- instellingen (per apparaat) ---------- */
+const settings = { mirror: false, rotate: false, bubbles: true, grid: false, size: 16, max: 30 };
+try { Object.assign(settings, JSON.parse(localStorage.getItem('tz-settings') || '{}')); } catch (e) {}
+function saveSettings() { try { localStorage.setItem('tz-settings', JSON.stringify(settings)); } catch (e) {} }
+
+/* ---------- canvas-maat ---------- */
+let W = 0, H = 0, DPR = 1;
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = cv.clientWidth; H = cv.clientHeight;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+}
+addEventListener('resize', resize); resize();
+
+/* ---------- vissen ---------- */
+const fish = [];        // {id, cv, aspect, x, y, vx, vy, face, ...}
+const ripples = [];
+const bubbles = [];
+const rand = (a, b) => a + Math.random() * (b - a);
+
+function baseSize() { return Math.min(W, H) * settings.size / 100 * 1.6; }
+
+function addFish(rec, { splash = false, demo = false } = {}) {
+  if (fish.some(f => f.id === rec.id)) return;
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    c.getContext('2d').drawImage(img, 0, 0);
+    spawn(rec, c, splash, demo);
+  };
+  img.src = rec.img;
+}
+
+function spawn(rec, c, splash, demo) {
+  if (fish.some(f => f.id === rec.id)) return;
+  const speed = rand(0.045, 0.085);
+  const dir = Math.random() < .5 ? -1 : 1;
+  const f = {
+    id: rec.id, cv: c, aspect: c.height / c.width, demo,
+    naam: rec.naam || '', face: rec.kijkt === 'links' ? -1 : 1,
+    t0: rec.t || 0,
+    x: rand(0.15, 0.85) * W, y: rand(0.15, 0.85) * H,
+    vx: dir * speed, vy: 0, speed, wantDir: dir,
+    ph: rand(0, 6.28), freq: rand(5, 7.5), scale: rand(0.85, 1.15),
+    born: performance.now(), appear: splash ? 0 : 1, flee: 0,
+    label: splash && rec.naam ? 6 : 0
+  };
+  fish.push(f);
+  if (splash) for (let i = 0; i < 3; i++) ripples.push({ x: f.x, y: f.y, r: 0, d: i * 0.25, life: 0 });
+  trim();
+  updateCount();
+}
+
+function removeFish(id) {
+  const i = fish.findIndex(f => f.id === id);
+  if (i >= 0) fish.splice(i, 1);
+  updateCount();
+}
+
+function trim() {
+  const real = fish.filter(f => !f.demo);
+  // Voorbeeldvissen zwemmen weg zodra er echte tekeningen zijn.
+  if (real.length >= 3) for (let i = fish.length - 1; i >= 0; i--) if (fish[i].demo) fish.splice(i, 1);
+  const extra = fish.filter(f => !f.demo).sort((a, b) => a.t0 - b.t0);
+  while (extra.length > settings.max) removeFish(extra.shift().id);
+}
+
+function updateCount() {
+  const real = fish.filter(f => !f.demo).length;
+  const demo = fish.length - real;
+  $('count').textContent = real
+    ? `${real} ${real === 1 ? 'tekening zwemt' : 'tekeningen zwemmen'} rond`
+    : demo ? `${demo} voorbeeldvissen, voeg de eerste tekening toe` : 'nog leeg';
+}
+
+/* ---------- voorbeeldvissen (krijt-stijl) ---------- */
+function demoFish(colA, colB, kind) {
+  const c = document.createElement('canvas'); c.width = 320; c.height = 200;
+  const g = c.getContext('2d');
+  g.lineJoin = 'round'; g.lineCap = 'round';
+  const wob = () => rand(-2.5, 2.5);
+  const path = () => {
+    g.beginPath();
+    if (kind === 'kwal') {
+      g.moveTo(80, 120); g.bezierCurveTo(70 + wob(), 20, 250 + wob(), 20, 240, 120); g.closePath();
+    } else {
+      g.moveTo(250, 100);
+      g.bezierCurveTo(230 + wob(), 30, 120, 35 + wob(), 85, 95);
+      g.lineTo(25 + wob(), 45); g.lineTo(40, 100); g.lineTo(25 + wob(), 160); g.lineTo(85, 108);
+      g.bezierCurveTo(120, 170 + wob(), 230, 170 + wob(), 250, 100);
+      g.closePath();
+    }
+  };
+  path(); g.fillStyle = colA; g.fill();
+  g.save(); path(); g.clip();
+  g.strokeStyle = colB; g.lineWidth = 16;
+  for (let x = 110; x < 250; x += 38) { g.beginPath(); g.moveTo(x + wob(), 20); g.lineTo(x + 8 + wob(), 180); g.stroke(); }
+  g.restore();
+  if (kind === 'kwal') {
+    g.strokeStyle = colA; g.lineWidth = 9;
+    for (let x = 100; x <= 220; x += 30) { g.beginPath(); g.moveTo(x, 118); g.bezierCurveTo(x - 15, 145, x + 15, 165, x + wob(), 192); g.stroke(); }
+  }
+  path(); g.strokeStyle = '#1b1b25'; g.lineWidth = 7; g.stroke();
+  const ex = kind === 'kwal' ? 135 : 212, ey = kind === 'kwal' ? 80 : 82;
+  g.fillStyle = '#fff'; g.beginPath(); g.arc(ex, ey, 13, 0, 7); g.fill(); g.stroke();
+  g.fillStyle = '#1b1b25'; g.beginPath(); g.arc(ex + 3, ey, 6, 0, 7); g.fill();
+  if (kind === 'kwal') { g.fillStyle = '#fff'; g.beginPath(); g.arc(185, 80, 13, 0, 7); g.fill(); g.stroke(); g.fillStyle = '#1b1b25'; g.beginPath(); g.arc(188, 80, 6, 0, 7); g.fill(); }
+  return c;
+}
+const demos = [
+  ['demo-1', demoFish('#ff8c42', '#ffd23f', 'vis')],
+  ['demo-2', demoFish('#5fa8ff', '#b4f0ff', 'vis')],
+  ['demo-3', demoFish('#ff5fa2', '#ffc2de', 'kwal')]
+];
+demos.forEach(([id, c]) => spawn({ id, kijkt: 'rechts' }, c, false, true));
+
+/* ---------- animatie ---------- */
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  step(dt, now / 1000);
+  draw(now / 1000);
+  requestAnimationFrame(frame);
+}
+
+function step(dt, t) {
+  const S = Math.min(W, H);
+  for (const f of fish) {
+    const w = baseSize() * f.scale, h = w * f.aspect;
+    if (f.appear < 1) f.appear = Math.min(1, f.appear + dt / 1.4);
+    if (f.label > 0) f.label -= dt;
+    const fast = f.flee > 0 ? 3.2 : 1;
+    if (f.flee > 0) f.flee -= dt;
+    // af en toe omdraaien, en altijd bij de rand
+    if (Math.random() < dt * 0.02) f.wantDir *= -1;
+    if (f.x < w * 0.6) f.wantDir = 1;
+    if (f.x > W - w * 0.6) f.wantDir = -1;
+    const targetVx = f.wantDir * f.speed * S * fast;
+    f.vx += (targetVx - f.vx) * Math.min(1, dt * (f.flee > 0 ? 3 : 0.8));
+    const targetVy = Math.sin(t * 0.35 + f.ph) * f.speed * S * 0.35 * fast;
+    let vy = f.vy + (targetVy - f.vy) * Math.min(1, dt * 1.2);
+    if (f.y < h) vy += S * 0.05 * dt * 10;
+    if (f.y > H - h) vy -= S * 0.05 * dt * 10;
+    f.vy = vy;
+    const m = reduceMotion ? 0.3 : 1;
+    f.x += f.vx * dt * m; f.y += f.vy * dt * m;
+    f.x = Math.max(-w, Math.min(W + w, f.x));
+    f.y = Math.max(h * 0.4, Math.min(H - h * 0.4, f.y));
+  }
+  for (let i = ripples.length - 1; i >= 0; i--) {
+    const r = ripples[i];
+    if (r.d > 0) { r.d -= dt; continue; }
+    r.life += dt; r.r = r.life * S * 0.22;
+    if (r.life > 1.6) ripples.splice(i, 1);
+  }
+  if (settings.bubbles && !reduceMotion && Math.random() < dt * 3 && fish.length) {
+    const f = fish[Math.floor(Math.random() * fish.length)];
+    const w = baseSize() * f.scale;
+    const dir = Math.sign(f.vx) || 1;
+    bubbles.push({ x: f.x + dir * w * 0.45, y: f.y, r: rand(2, 6) * S / 600, vy: rand(20, 45) * S / 600, life: 0, max: rand(1.5, 3) });
+  }
+  for (let i = bubbles.length - 1; i >= 0; i--) {
+    const b = bubbles[i]; b.life += dt; b.y -= b.vy * dt; b.x += Math.sin(b.life * 4) * 0.3;
+    if (b.life > b.max) bubbles.splice(i, 1);
+  }
+}
+
+function easeBack(x) { const c = 1.7; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+
+function draw(t) {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = '#03101c'; ctx.fillRect(0, 0, W, H);
+  // beamer-correctie
+  ctx.translate(W / 2, H / 2);
+  if (settings.rotate) ctx.rotate(Math.PI);
+  if (settings.mirror) ctx.scale(-1, 1);
+  ctx.translate(-W / 2, -H / 2);
+
+  if (settings.grid) {
+    ctx.strokeStyle = 'rgba(95,227,208,.5)'; ctx.lineWidth = 2;
+    for (let i = 1; i < 6; i++) { ctx.beginPath(); ctx.moveTo(W * i / 6, 0); ctx.lineTo(W * i / 6, H); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, H * i / 6); ctx.lineTo(W, H * i / 6); ctx.stroke(); }
+    ctx.strokeRect(4, 4, W - 8, H - 8);
+    ctx.fillStyle = '#ffcf4a'; ctx.font = `800 ${Math.round(Math.min(W, H) / 14)}px Grandstander, sans-serif`;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText('↖ linksboven', 20, 20);
+  }
+
+  for (const r of ripples) {
+    if (r.d > 0) continue;
+    ctx.strokeStyle = `rgba(180,240,255,${0.5 * (1 - r.life / 1.6)})`;
+    ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(r.x, r.y, r.r, r.r * 0.7, 0, 0, 7); ctx.stroke();
+  }
+  for (const b of bubbles) {
+    ctx.strokeStyle = `rgba(200,240,255,${0.6 * (1 - b.life / b.max)})`; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.stroke();
+  }
+
+  const N = 22;
+  for (const f of fish) {
+    const a = f.appear < 1 ? easeBack(f.appear) : 1;
+    const w = baseSize() * f.scale * a, h = w * f.aspect;
+    if (w < 1) continue;
+    const sp = Math.hypot(f.vx, f.vy) || 1;
+    const turn = Math.max(-1, Math.min(1, f.vx / (f.speed * Math.min(W, H) * 0.6)));
+    const dir = turn >= 0 ? 1 : -1;
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    ctx.rotate(Math.atan2(f.vy, Math.abs(f.vx) + 1) * 0.5 * dir);
+    // scaleX loopt door 0 bij omdraaien: het dier draait echt om
+    const sx = (Math.abs(turn) < 0.12 ? 0.12 * Math.sign(turn || 1) : turn) * f.face;
+    ctx.scale(sx, 1);
+    if (f.appear < 1) ctx.globalAlpha = Math.min(1, f.appear * 2);
+    const img = f.cv, iw = img.width, ih = img.height, sw = iw / N;
+    const amp = (f.flee > 0 ? 0.2 : 0.12) * h;
+    const fr = f.freq * (f.flee > 0 ? 2.2 : 1);
+    for (let i = 0; i < N; i++) {
+      const u0 = (i + 0.5) / N;
+      const tail = f.face === 1 ? 1 - u0 : u0;            // 0 = kop, 1 = staart
+      const off = reduceMotion ? 0 : Math.sin(t * fr - tail * 3.4 + f.ph) * tail * tail * amp;
+      ctx.drawImage(img, i * sw, 0, sw + 1, ih, -w / 2 + i * w / N, -h / 2 + off, w / N + 0.8, h);
+    }
+    ctx.restore();
+    if (f.label > 0 && f.naam) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, f.label / 1.5, (6 - f.label) * 2);
+      ctx.fillStyle = '#ffcf4a';
+      ctx.font = `800 ${Math.round(Math.max(18, baseSize() * 0.2))}px Grandstander, "Comic Sans MS", sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillText(f.naam, f.x, f.y + h / 2 + 8);
+      ctx.restore();
+    }
+  }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+requestAnimationFrame(frame);
+
+/* ---------- schrikken bij aanraken ---------- */
+function toPool(clientX, clientY) {
+  let x = clientX, y = clientY;
+  if (settings.mirror) x = W - x;
+  if (settings.rotate) { x = W - x; y = H - y; }
+  return { x, y };
+}
+cv.addEventListener('pointerdown', e => {
+  const p = toPool(e.clientX, e.clientY);
+  const R = Math.min(W, H) * 0.35;
+  ripples.push({ x: p.x, y: p.y, r: 0, d: 0, life: 0 });
+  for (const f of fish) {
+    const dx = f.x - p.x, dy = f.y - p.y, d = Math.hypot(dx, dy);
+    if (d < R) { f.wantDir = dx >= 0 ? 1 : -1; f.vy = (dy / (d || 1)) * f.speed * Math.min(W, H) * 2; f.flee = 1.6; }
+  }
+});
+
+/* ---------- werkbalk wegvallen ---------- */
+let idleTimer;
+function wake() {
+  document.body.classList.remove('idle');
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => { if (!document.querySelector('.sheet-wrap:not([hidden])')) document.body.classList.add('idle'); }, 4000);
+}
+['pointermove', 'pointerdown', 'keydown'].forEach(ev => addEventListener(ev, wake));
+wake();
+
+/* ---------- volledig scherm + scherm aan houden ---------- */
+$('btnFull').onclick = async () => {
+  try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); }
+  catch (e) { toast('Volledig scherm werkt hier niet. Gebruik F11 in de browser.'); }
+};
+async function keepAwake() { try { await navigator.wakeLock?.request('screen'); } catch (e) {} }
+keepAwake();
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') keepAwake(); });
+
+function toast(msg) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), 3200);
+}
+
+/* ---------- sheets ---------- */
+function open(id) { $(id).hidden = false; wake(); }
+function close(id) { $(id).hidden = true; wake(); }
+$('btnHelp').onclick = () => open('helpSheet');
+$('helpClose').onclick = () => close('helpSheet');
+$('btnSettings').onclick = () => { syncSettingsUI(); open('setSheet'); };
+$('setClose').onclick = () => close('setSheet');
+document.querySelectorAll('.sheet-wrap').forEach(w => w.addEventListener('pointerdown', e => { if (e.target === w) { w.hidden = true; resetAdd(); } }));
+addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.sheet-wrap').forEach(w => { w.hidden = true; }); });
+
+function syncSettingsUI() {
+  $('optMirror').setAttribute('aria-pressed', settings.mirror);
+  $('optRotate').setAttribute('aria-pressed', settings.rotate);
+  $('optBubbles').setAttribute('aria-pressed', settings.bubbles);
+  $('optGrid').setAttribute('aria-pressed', settings.grid);
+  $('optSize').value = settings.size;
+  $('optMax').value = settings.max; $('maxVal').textContent = settings.max;
+}
+[['optMirror', 'mirror'], ['optRotate', 'rotate'], ['optBubbles', 'bubbles'], ['optGrid', 'grid']].forEach(([id, k]) => {
+  $(id).onclick = () => { settings[k] = !settings[k]; saveSettings(); syncSettingsUI(); };
+});
+$('optSize').oninput = e => { settings.size = +e.target.value; saveSettings(); };
+$('optMax').oninput = e => { settings.max = +e.target.value; $('maxVal').textContent = settings.max; saveSettings(); trim(); };
+
+/* ---------- gedeelde opslag ---------- */
+let db = null, col = null;
+(async () => {
+  try { db = await window.claude?.use?.('db'); } catch (e) { db = null; }
+  if (!db) { updateCount(); return; }
+  col = db.collection('tekeningen');
+  let first = true;
+  col.orderBy('t', 'desc').limit(60).onSnapshot(snap => {
+    for (const ch of snap.docChanges()) {
+      if (ch.type === 'removed') { removeFish(ch.doc.id); continue; }
+      if (ch.type !== 'added') continue;
+      const d = ch.doc.data() || {};
+      if (typeof d.img !== 'string' || !d.img.startsWith('data:image/')) continue;
+      addFish({ id: ch.doc.id, img: d.img, naam: String(d.naam || '').slice(0, 24), kijkt: d.kijkt, t: +d.t || 0 }, { splash: !first });
+    }
+    first = false;
+    updateCount();
+  }, () => { $('count').textContent = 'verbinding met de opslag mislukt'; });
+})();
+
+/* ---------- tekening toevoegen ---------- */
+let srcCanvas = null, cutout = null, face = 'rechts';
+$('btnAdd').onclick = () => { resetAdd(); open('addSheet'); };
+$('addCancel').onclick = () => { close('addSheet'); resetAdd(); };
+$('addRetry').onclick = () => { resetAdd(); $('fileIn').click(); };
+$('fileIn').onchange = e => { const f = e.target.files[0]; if (f) loadFile(f); };
+$('faceL').onclick = () => setFace('links');
+$('faceR').onclick = () => setFace('rechts');
+$('strict').oninput = () => { if (srcCanvas) process(); };
+function setFace(v) { face = v; $('faceL').setAttribute('aria-pressed', v === 'links'); $('faceR').setAttribute('aria-pressed', v === 'rechts'); }
+
+const drop = $('stepPick');
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); const f = e.dataTransfer.files[0]; if (f) loadFile(f); });
+addEventListener('paste', e => { const f = [...(e.clipboardData?.files || [])][0]; if (f && !$('addSheet').hidden) loadFile(f); });
+
+function resetAdd() {
+  srcCanvas = null; cutout = null;
+  $('stepPick').hidden = false; $('stepCheck').hidden = true;
+  $('addSend').hidden = true; $('addRetry').hidden = true; $('addSend').disabled = false;
+  status('');
+  $('fileIn').value = '';
+}
+function status(msg, err) { const s = $('addStatus'); s.textContent = msg; s.classList.toggle('err', !!err); }
+
+function loadFile(file) {
+  if (!file.type.startsWith('image/')) { status('Dit is geen foto. Kies een afbeelding (jpg of png).', true); return; }
+  status('Foto inlezen…');
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    const max = 900, s = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+    srcCanvas = document.createElement('canvas');
+    srcCanvas.width = Math.round(img.naturalWidth * s); srcCanvas.height = Math.round(img.naturalHeight * s);
+    srcCanvas.getContext('2d').drawImage(img, 0, 0, srcCanvas.width, srcCanvas.height);
+    URL.revokeObjectURL(url);
+    $('stepPick').hidden = true; $('stepCheck').hidden = false;
+    $('addRetry').hidden = false; $('addSend').hidden = false;
+    process();
+  };
+  img.onerror = () => status('Deze foto kon niet worden geopend. Probeer een andere.', true);
+  img.src = url;
+}
+
+/* Papier wegknippen:
+   1. schat per stukje beeld hoe wit het papier daar is (werkt ook met schaduw),
+   2. pixels die duidelijk donkerder of kleuriger zijn = tekening,
+   3. vul vanaf de rand alles wat geen tekening is: dat is papier en wordt doorzichtig.
+      Wit binnen de omlijning blijft zo gewoon staan.
+   4. houd de grootste figuur over, snijd bij en verklein. */
+function process() {
+  const strict = +$('strict').value;
+  const w = srcCanvas.width, h = srcCanvas.height, n = w * h;
+  const px = srcCanvas.getContext('2d').getImageData(0, 0, w, h).data;
+  const lum = new Float32Array(n), sat = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const r = px[i * 4], g = px[i * 4 + 1], b = px[i * 4 + 2];
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    lum[i] = 0.299 * r + 0.587 * g + 0.114 * b;
+    sat[i] = mx ? (mx - mn) / mx : 0;
+  }
+  // papierhelderheid per cel (90e percentiel), daarna glad
+  const C = 24, gw = Math.ceil(w / C), gh = Math.ceil(h / C), paper = new Float32Array(gw * gh);
+  for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < gw; gx++) {
+    const vals = [];
+    for (let y = gy * C; y < Math.min(h, gy * C + C); y += 2) for (let x = gx * C; x < Math.min(w, gx * C + C); x += 2) vals.push(lum[y * w + x]);
+    vals.sort((a, b) => a - b); paper[gy * gw + gx] = vals[Math.floor(vals.length * 0.9)] || 255;
+  }
+  const paperS = new Float32Array(gw * gh);
+  for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < gw; gx++) {
+    let m = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const x = Math.min(gw - 1, Math.max(0, gx + dx)), y = Math.min(gh - 1, Math.max(0, gy + dy)); m = Math.max(m, paper[y * gw + x]);
+    }
+    paperS[gy * gw + gx] = m;
+  }
+  const ink = new Uint8Array(n);
+  const satT = 0.5 - strict / 250;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x, p = paperS[Math.floor(y / C) * gw + Math.floor(x / C)];
+    const dark = p - lum[i];
+    ink[i] = (dark > strict || (sat[i] > satT && dark > strict * 0.3)) ? 1 : 0;
+  }
+  // verdikken: kleine gaatjes in de omlijning dichten
+  const thick = new Uint8Array(n), R = 2;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (!ink[y * w + x]) continue;
+    for (let dy = -R; dy <= R; dy++) { const yy = y + dy; if (yy < 0 || yy >= h) continue;
+      for (let dx = -R; dx <= R; dx++) { const xx = x + dx; if (xx >= 0 && xx < w) thick[yy * w + xx] = 1; } }
+  }
+  // flood fill vanaf de rand = papier
+  const bg = new Uint8Array(n), stack = new Int32Array(n); let sp = 0;
+  const push = i => { if (!bg[i] && !thick[i]) { bg[i] = 1; stack[sp++] = i; } };
+  for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
+  for (let y = 0; y < h; y++) { push(y * w); push(y * w + w - 1); }
+  while (sp) { const i = stack[--sp], x = i % w;
+    if (x > 0) push(i - 1); if (x < w - 1) push(i + 1); if (i >= w) push(i - w); if (i < n - w) push(i + w); }
+  // figuren labelen, grootste houden (figuren tegen de rand tellen minder: vaak tafel of schaduw)
+  const lab = new Int32Array(n); let next = 0; const comps = [];
+  for (let s = 0; s < n; s++) {
+    if (bg[s] || lab[s]) continue;
+    next++; let size = 0, edge = false, x0 = w, y0 = h, x1 = 0, y1 = 0; sp = 0; stack[sp++] = s; lab[s] = next;
+    while (sp) { const i = stack[--sp], x = i % w, y = (i / w) | 0; size++;
+      if (x === 0 || y === 0 || x === w - 1 || y === h - 1) edge = true;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      const nb = [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, i >= w ? i - w : -1, i < n - w ? i + w : -1];
+      for (const j of nb) if (j >= 0 && !bg[j] && !lab[j]) { lab[j] = next; stack[sp++] = j; } }
+    comps.push({ id: next, size, edge, x0, y0, x1, y1, score: size * (edge ? 0.25 : 1) });
+  }
+  if (!comps.length || Math.max(...comps.map(c => c.size)) < n * 0.005) {
+    status('Geen tekening gevonden. Zet de schuif op minder streng, of maak een scherpere foto.', true);
+    $('addSend').disabled = true; drawPreview(null); return;
+  }
+  comps.sort((a, b) => b.score - a.score);
+  const main = comps[0];
+  const keep = new Set([main.id]);
+  for (const c of comps.slice(1)) if (!c.edge && c.size > main.size * 0.04) keep.add(c.id);
+  let x0 = w, y0 = h, x1 = 0, y1 = 0;
+  for (const c of comps) if (keep.has(c.id)) { x0 = Math.min(x0, c.x0); y0 = Math.min(y0, c.y0); x1 = Math.max(x1, c.x1); y1 = Math.max(y1, c.y1); }
+  const cw = x1 - x0 + 1, ch = y1 - y0 + 1;
+  const out = new ImageData(cw, ch);
+  for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
+    const si = (y + y0) * w + (x + x0), di = (y * cw + x) * 4;
+    if (!keep.has(lab[si])) continue;
+    // binnenkant van de dikke rand die eigenlijk papier is: zacht laten vervagen
+    const a = ink[si] ? 255 : (thick[si] && isNearBg(bg, si, w, h)) ? 120 : 255;
+    out.data[di] = px[si * 4]; out.data[di + 1] = px[si * 4 + 1]; out.data[di + 2] = px[si * 4 + 2]; out.data[di + 3] = a;
+  }
+  const tmp = document.createElement('canvas'); tmp.width = cw; tmp.height = ch; tmp.getContext('2d').putImageData(out, 0, 0);
+  const max = 420, s = Math.min(1, max / Math.max(cw, ch));
+  cutout = document.createElement('canvas'); cutout.width = Math.max(1, Math.round(cw * s)); cutout.height = Math.max(1, Math.round(ch * s));
+  const cg = cutout.getContext('2d'); cg.imageSmoothingQuality = 'high'; cg.drawImage(tmp, 0, 0, cutout.width, cutout.height);
+  drawPreview(cutout);
+  $('addSend').disabled = false;
+  status(main.edge ? 'Raakt de rand van de foto. Klopt het niet, maak de foto dan iets verder weg.' : 'Zo gaat hij het water in. Klopt het niet, schuif aan de knipschuif.');
+}
+function isNearBg(bg, i, w, h) { const x = i % w; return (x > 0 && bg[i - 1]) || (x < w - 1 && bg[i + 1]) || (i >= w && bg[i - w]) || (i < w * (h - 1) && bg[i + w]); }
+
+function drawPreview(c) {
+  const p = $('prevCv');
+  if (!c) { p.width = 10; p.height = 10; return; }
+  p.width = c.width; p.height = c.height;
+  p.getContext('2d').drawImage(c, 0, 0);
+}
+
+function encode(c) {
+  let q = 0.88, url = '';
+  for (let k = 0; k < 6; k++) {
+    url = c.toDataURL('image/webp', q);
+    if (!url.startsWith('data:image/webp')) url = c.toDataURL('image/png');
+    if (url.length < 200000) return url;
+    // te groot: verkleinen
+    const s = document.createElement('canvas'); s.width = Math.round(c.width * 0.8); s.height = Math.round(c.height * 0.8);
+    s.getContext('2d').drawImage(c, 0, 0, s.width, s.height); c = s; q -= 0.08;
+  }
+  return url;
+}
+
+$('addSend').onclick = async () => {
+  if (!cutout) return;
+  const rec = { img: encode(cutout), naam: $('naam').value.trim().slice(0, 24), kijkt: face, t: Date.now() };
+  $('addSend').disabled = true;
+  if (!col) {
+    // geen gedeelde opslag: alleen op dit scherm
+    addFish({ id: 'lokaal-' + rec.t, ...rec }, { splash: true });
+    close('addSheet'); resetAdd();
+    toast('Zwemt nu op dit scherm. Gedeelde opslag is hier niet beschikbaar, dus de beamer ziet hem niet.');
+    return;
+  }
+  status('Insturen…');
+  try {
+    await col.add(rec);
+    close('addSheet'); resetAdd(); $('naam').value = '';
+    toast(rec.naam ? `${rec.naam} zwemt nu in het zwembad!` : 'Je tekening zwemt nu in het zwembad!');
+  } catch (e) {
+    $('addSend').disabled = false;
+    status(e?.code === 'not_granted' ? 'Je hebt geen rechten om tekeningen toe te voegen. Vraag de eigenaar om je toegang te geven.' : 'Insturen mislukte. Controleer de internetverbinding en probeer het opnieuw.', true);
+  }
+};
+
+/* ---------- alles weghalen ---------- */
+$('btnClear').onclick = () => { $('btnClearYes').hidden = false; };
+$('btnClearYes').onclick = async () => {
+  $('btnClearYes').hidden = true;
+  const st = $('setStatus');
+  for (let i = fish.length - 1; i >= 0; i--) if (fish[i].id.startsWith('lokaal-')) fish.splice(i, 1);
+  if (!col) { updateCount(); st.textContent = 'Weggehaald.'; return; }
+  st.textContent = 'Bezig met weghalen…';
+  try {
+    const snap = await col.get();
+    for (const d of snap.docs) await col.doc(d.id).delete();
+    st.textContent = `${snap.size} tekeningen weggehaald.`;
+  } catch (e) { st.textContent = 'Weghalen mislukte. Alleen wie mag bewerken kan tekeningen weghalen.'; }
+};
+})();
+</script>

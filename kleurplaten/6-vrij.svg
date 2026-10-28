@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="297mm" height="210mm" viewBox="0 0 297 210">
+  <style>
+    .lijn path, .lijn circle { fill: none; stroke: #111; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+    .lijn .vol { fill: #111; }
+    .hoek { fill: none; stroke: #9a9a9a; stroke-width: 1.2; }
+    .vak { fill: none; stroke: #c4c4c4; stroke-width: 0.5; stroke-dasharray: 3 3; }
+    text { font-family: 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', sans-serif; fill: #8a8a8a; }
+  </style>
+  <rect width="297" height="210" fill="#fff"/>
+  <text x="18" y="17" font-size="9" font-weight="bold" fill="#555">Teken je eigen waterdier</text>
+  <text x="18" y="24.5" font-size="4.2">Teken een groot dier met een dikke zwarte lijn eromheen. Laat het naar rechts zwemmen.</text>
+  <text x="279" y="17" font-size="5" text-anchor="end">zwemrichting</text>
+  <path d="M252 21.5 L278 21.5 M272 18 L278 21.5 L272 25" fill="none" stroke="#8a8a8a" stroke-width="1" stroke-linecap="round"/>
+  <rect class="vak" x="18" y="30" width="261" height="162"/>
+  <path d="M18 40 L18 30 L28 30" class="hoek"/><path d="M279 40 L279 30 L269 30" class="hoek"/><path d="M18 182 L18 192 L28 192" class="hoek"/><path d="M279 182 L279 192 L269 192" class="hoek"/>
+  <g class="lijn"></g>
+  <text x="18" y="203" font-size="5">Naam: ................................................</text>
+  <text x="279" y="203" font-size="4" text-anchor="end">Leg het blad in het vak onder de camera. De hoekjes moeten in beeld zijn.</text>
+</svg>

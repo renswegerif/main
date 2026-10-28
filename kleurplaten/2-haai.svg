@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="297mm" height="210mm" viewBox="0 0 297 210">
+  <style>
+    .lijn path, .lijn circle { fill: none; stroke: #111; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+    .lijn .vol { fill: #111; }
+    .hoek { fill: none; stroke: #9a9a9a; stroke-width: 1.2; }
+    .vak { fill: none; stroke: #c4c4c4; stroke-width: 0.5; stroke-dasharray: 3 3; }
+    text { font-family: 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', sans-serif; fill: #8a8a8a; }
+  </style>
+  <rect width="297" height="210" fill="#fff"/>
+  <text x="18" y="17" font-size="9" font-weight="bold" fill="#555">De haai</text>
+  <text x="18" y="24.5" font-size="4.2">Kleur het dier in met felle kleuren. Hoe voller, hoe mooier het zwemt!</text>
+  <text x="279" y="17" font-size="5" text-anchor="end">zwemrichting</text>
+  <path d="M252 21.5 L278 21.5 M272 18 L278 21.5 L272 25" fill="none" stroke="#8a8a8a" stroke-width="1" stroke-linecap="round"/>
+  <rect class="vak" x="18" y="30" width="261" height="162"/>
+  <path d="M18 40 L18 30 L28 30" class="hoek"/><path d="M279 40 L279 30 L269 30" class="hoek"/><path d="M18 182 L18 192 L28 192" class="hoek"/><path d="M279 182 L279 192 L269 192" class="hoek"/>
+  <g class="lijn">
+      <path d="M250 114 C226 86 176 80 136 88 L124 54 L106 92 C86 96 72 100 58 98 L34 64 C40 88 42 104 40 118 L28 154 L58 124 C92 132 132 138 172 138 C214 138 238 128 250 114 Z"/>
+      <path d="M176 134 L160 164 L148 136"/>
+      <path d="M196 98 q-5 10 0 20 M206 96 q-5 11 0 22 M216 97 q-5 10 0 20"/>
+      <circle cx="226" cy="104" r="6"/><circle cx="227.5" cy="104" r="2.5" class="vol"/>
+      <path d="M230 124 q8 2 16 -6"/>
+      <path d="M232 125 l2 4 l2 -5 l2 4 l2 -6 l2 4 l2 -6"/>
+    </g>
+  <text x="18" y="203" font-size="5">Naam: ................................................</text>
+  <text x="279" y="203" font-size="4" text-anchor="end">Leg het blad in het vak onder de camera. De hoekjes moeten in beeld zijn.</text>
+</svg>
